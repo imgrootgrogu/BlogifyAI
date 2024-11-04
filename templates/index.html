@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Blogs 🍄</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Link to a Mario-like font -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="dropdown">
+        {% if username %}
+            <button class="dropbtn">{{ username }}</button>
+            <div class="dropdown-content">
+                <form action="{{ url_for('logout') }}" method="POST" style="margin: 0;">
+                    <button type="submit">Logout</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+   
+    <h1>Welcome to Blogify AI 🍄</h1>
+    <!-- Blog Generation Form -->
+    <form id="blogForm" action="/submit_blog" method="POST">
+        <label for="input_text">Enter the Blog Topic</label>
+        <input type="text" id="input_text" name="input_text" required>
+
+        <label for="no_words">Number of Words</label>
+        <input type="number" id="no_words" name="no_words" required>
+
+        <label for="blog_style">Writing the blog for</label>
+        <select id="blog_style" name="blog_style">
+            <option value="Data Engineer">Data Engineer</option>
+            <option value="Machine Learning Engineer">Machine Learning Engineer</option>
+            <option value="Data Analyst">Data Analyst</option>
+        </select>
+
+        <button type="submit">Generate Blog</button>
+    </form>
+    <!-- Image Generation Form -->
+    <form id="imageForm" style="margin-top: 20px;">
+        <label for="image_prompt">Enter the Image Prompt</label>
+        <input type="text" id="image_prompt" name="image_prompt" required>
+
+        <button type="button" onclick="generateImage()">Generate Image</button>
+    </form>
+
+    <!-- Display generated blog content -->
+    <div id="generated-blog"></div>
+    
+    <!-- Display generated image -->
+    <div id="generated-image">
+        <!-- <h2>Generated Image:</h2> -->
+        <img id="image-output" src="" alt="Generated Image will appear here" style="display:none; border:2px solid #333;">
+    </div>
+
+
+    <script>
+        // JavaScript to handle blog generation form submission without page refresh
+        document.getElementById("blogForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            fetch("/submit_blog", { method: "POST", body: formData })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("generated-blog").innerText = data.generated_blog || "Error generating blog content.";
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                document.getElementById("generated-blog").innerText = "An error occurred while generating the blog.";
+            });
+        });
+
+        // JavaScript to handle image generation
+        function generateImage() {
+            const prompt = document.getElementById("image_prompt").value;
+            fetch("/generate_image", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({ "image_prompt": prompt })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.base64_image) {
+                    const img = document.getElementById("image-output");
+                    img.src = `data:image/png;base64,${data.base64_image}`;
+                    img.style.display = "block";
+                } else {
+                    alert("Image generation failed.");
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        }
+    </script>
+</body>
+</html>
+
