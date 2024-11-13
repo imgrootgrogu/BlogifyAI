@@ -14,13 +14,13 @@ import uuid
 from datetime import datetime
 
 load_dotenv()
-app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY')
+application = Flask(__name__)
+application.secret_key = os.getenv('SECRET_KEY')
 dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 users_table = dynamodb.Table('Users')
 generated_content_table = dynamodb.Table('GeneratedContent')
 
-@app.route('/', methods=['GET', 'POST'])
+@application.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
@@ -53,7 +53,7 @@ def login():
 
     return render_template('login.html')
 
-@app.route('/register', methods=['GET', 'POST'])
+@application.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         username = request.form['username']
@@ -166,7 +166,7 @@ def get_llma_response(topic, number_of_words, blog_type):
 
 
 
-@app.route('/submit_blog', methods=['POST'])
+@application.route('/submit_blog', methods=['POST'])
 def handle_submit():
 
     if request.method == 'POST':
@@ -179,7 +179,7 @@ def handle_submit():
         return jsonify({'generated_blog': generate_blog})
     
 # Route for handling image generation
-@app.route('/generate_image', methods=['POST'])
+@application.route('/generate_image', methods=['POST'])
 def generate_image():
     if request.method == 'POST':
         prompt = request.form['image_prompt']
@@ -193,7 +193,7 @@ def generate_image():
 # @app.route("/")
 # def index():
 #     return render_template("index.html")
-@app.route('/index')
+@application.route('/index')
 def index():
     if 'username' in session:
         return render_template('index.html', username=session['username'])
@@ -201,7 +201,7 @@ def index():
         flash('Please log in to access the home page.', 'info')
         return redirect(url_for('login'))
 
-@app.route('/logout', methods=['POST'])
+@application.route('/logout', methods=['POST'])
 def logout():
     session.clear()
     flash('You have been logged out.', 'info')
@@ -209,4 +209,4 @@ def logout():
     
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    application.run(host='0.0.0.0', port=port)
