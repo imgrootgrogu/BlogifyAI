@@ -35,20 +35,19 @@
             <option value="Machine Learning Engineer">Machine Learning Engineer</option>
             <option value="Data Analyst">Data Analyst</option>
         </select>
-
-        <button type="submit">Generate Blog</button>
+        <button type="submit">Generate Blog And Image</button>
     </form>
-    <!-- Image Generation Form -->
+    <!-- Image Generation Form
     <form id="imageForm" style="margin-top: 20px;">
         <label for="image_prompt">Enter the Image Prompt</label>
         <input type="text" id="image_prompt" name="image_prompt" required>
 
         <button type="button" onclick="generateImage()">Generate Image</button>
-    </form>
+    </form>  -->
 
     <!-- Display generated blog content -->
     <div id="generated-blog"></div>
-    
+    <div id="generated-image-prompt"></div>
     <!-- Display generated image -->
     <div id="generated-image">
         <!-- <h2>Generated Image:</h2> -->
@@ -64,6 +63,14 @@
             fetch("/submit_blog", { method: "POST", body: formData })
             .then(response => response.json())
             .then(data => {
+                if (data.base64_image) {
+                    const img = document.getElementById("image-output");
+                    img.src = `data:image/png;base64,${data.base64_image}`;
+                    img.style.display = "block";
+                } else {
+                    alert("Image generation failed.");
+                }
+                document.getElementById("generated-image-prompt").innerText = data.image_prompt
                 document.getElementById("generated-blog").innerText = data.generated_blog || "Error generating blog content.";
             })
             .catch(error => {

@@ -132,7 +132,7 @@ def get_sdxl_image(prompt):
         return None
 
 
-def get_llma_response(topic, number_of_words, blog_type):
+def get_llma_response(topic, number_of_words, blog_type ):
     client = boto3.client("bedrock-runtime", region_name="us-east-1")
 
     # Set the model ID, e.g., Titan Text Premier.
@@ -140,6 +140,39 @@ def get_llma_response(topic, number_of_words, blog_type):
 
     # Start a conversation with the user message.
     prompt = f"Write a blog about '{topic}' aimed at {blog_type} in about {number_of_words} words."
+    conversation = [
+        {
+            "role": "user",
+            "content": [{"text": prompt}],
+        }
+    ]
+
+    try:
+        # Send the message to the model, using a basic inference configuration.
+        response = client.converse(
+            modelId= model_id,
+            messages=conversation,
+            inferenceConfig={"maxTokens":512,"temperature":0.5,"topP":0.9},
+            additionalModelRequestFields={}
+        )
+
+        # Extract and print the response text.
+        response_text = response["output"]["message"]["content"][0]["text"]
+        print(response_text)
+        return response_text
+    except (ClientError, Exception) as e:
+        print(f"ERROR: Can't invoke '{model_id}'. Reason: {e}")
+        exit(1)
+def get_llma_img_prompt(generate_blog,topic,blog_type):
+    client = boto3.client("bedrock-runtime", region_name="us-east-1")
+
+    # Set the model ID, e.g., Titan Text Premier.
+    model_id = "us.meta.llama3-2-11b-instruct-v1:0"
+
+    # Start a conversation with the user message.
+    # prompt = f"Write a sentence for the image generation model based on the blog post '{generate_blog}', topic of '{topic}' and aimed at '{blog_type}'"
+    prompt = f"Generate a descriptive and vivid prompt for a Stable Diffusion image model based on the blog post '{generate_blog}', with a focus on the topic '{topic}', and aimed at a '{blog_type}' audience. The prompt should include specific visual details, mood, colors, and any key elements or symbols that represent the main themes of the topic to help the model generate an engaging and relevant image of 20 words."
+
     conversation = [
         {
             "role": "user",
@@ -172,25 +205,28 @@ def handle_submit():
     if request.method == 'POST':
         topic = request.form['input_text']
         number_of_words = request.form['no_words']
-        bolog_type = request.form['blog_style']
+        blog_type = request.form['blog_style']
 
-        generate_blog = get_llma_response(topic, number_of_words, bolog_type)
-        add_generated_content(prompt=topic, content=generate_blog, user_id=session['user_id'])
-        return jsonify({'generated_blog': generate_blog})
+        generate_blog = get_llma_response(topic, number_of_words, blog_type)
+        generate_image_prompt = get_llma_img_prompt(generate_blog,topic,blog_type)
+
+        base64_image_data = get_sdxl_image(generate_image_prompt)
+        if base64_image_data:
+            
+            return jsonify({'base64_image': base64_image_data,'generated_blog': generate_blog, 'image_prompt':generate_image_prompt})
+        else:
+            return jsonify({'error': 'Image generation failed'}), 500
+        # add_generated_content(prompt=topic, content=generate_blog, user_id=session['user_id'])
+       
     
 # Route for handling image generation
 @application.route('/generate_image', methods=['POST'])
 def generate_image():
     if request.method == 'POST':
         prompt = request.form['image_prompt']
-        base64_image_data = get_sdxl_image(prompt)
-        if base64_image_data:
-            
-            return jsonify({'base64_image': base64_image_data})
-        else:
-            return jsonify({'error': 'Image generation failed'}), 500
+        
 
-# @app.route("/")
+# @application.route("/")
 # def index():
 #     return render_template("index.html")
 @application.route('/index')
