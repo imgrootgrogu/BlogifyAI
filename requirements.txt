@@ -26,3 +26,16 @@ tqdm==4.66.5
 typing_extensions==4.12.2
 urllib3==2.2.3
 Werkzeug==3.0.4
+diffusers
+ipython
+json5
+peft==0.13.
+pillow
+safetensors==0.4.5
+tokenizers
+torch
+torchaudio
+torchvision
+tqdm
+transformers==4.46.3
+accelerate
