@@ -36,6 +36,5 @@ tokenizers
 torch
 torchaudio
 torchvision
-tqdm
 transformers==4.46.3
 accelerate
