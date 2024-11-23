@@ -17,7 +17,7 @@ application.secret_key = os.getenv('SECRET_KEY')
 dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 users_table = dynamodb.Table('Users')
 generated_content_table = dynamodb.Table('GeneratedContent')
-sagemaker_runtime = boto3.client("sagemaker-runtime")
+sagemaker_runtime = boto3.client("sagemaker-runtime", region_name="us-east-1")
 endpoint_name = "blogify-endpoint-v1"
 
 def invoke_sagemaker_endpoint(payload):
