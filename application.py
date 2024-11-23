@@ -36,7 +36,7 @@ def invoke_sagemaker_endpoint(payload):
 @application.route('/process_payload', methods=['POST'])
 def process_payload():
     try:
-        # Extract data from the JSON payload
+       
         data = request.get_json()
         mode = data.get("mode", "text2img")
         lora = data.get("lora", "No LoRA")
@@ -71,10 +71,7 @@ def process_payload():
     except Exception as e:
         print(f"Error processing payload: {e}")
         return jsonify({"message": "An error occurred while processing the payload."}), 500
-
-
-
-        
+ 
 @application.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
