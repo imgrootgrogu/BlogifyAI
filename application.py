@@ -10,6 +10,7 @@ from database.database_models import add_generated_content, add_new_user
 import uuid
 from datetime import datetime
 from werkzeug.utils import secure_filename
+from botocore.config import Config
 
 load_dotenv()
 application = Flask(__name__)
@@ -17,7 +18,18 @@ application.secret_key = os.getenv('SECRET_KEY')
 dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 users_table = dynamodb.Table('Users')
 generated_content_table = dynamodb.Table('GeneratedContent')
-sagemaker_runtime = boto3.client("sagemaker-runtime", region_name="us-east-1")
+
+boto_config = Config(
+    region_name=os.environ.get('AWS_REGION', 'us-east-1'),
+    retries = {'max_attempts': 3}
+)
+
+sagemaker_runtime = boto3.client(
+    "sagemaker-runtime",
+    config=boto_config
+)
+
+# sagemaker_runtime = boto3.client("sagemaker-runtime", region_name="us-east-1")
 endpoint_name = "blogify-endpoint-v1"
 
 def invoke_sagemaker_endpoint(payload):
