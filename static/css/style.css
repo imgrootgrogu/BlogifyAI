@@ -156,6 +156,27 @@ button:hover {
     border: 2px solid #333;            
 }
 
+#generated-content {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #FFFFFF;
+    border: 3px solid #333;
+    box-shadow: 4px 4px #888;
+    font-size: 16px;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 520px; 
+}
+
+#output-image {
+    max-width: 500px;
+    max-height: 500px;
+    width: auto;
+    height: auto;
+    border: 2px solid #333;            
+}
 /* Specific styles for register.html */
 .register-container {
     background-color: #FFB74D; 

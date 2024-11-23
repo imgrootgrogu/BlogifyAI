@@ -2,16 +2,14 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 import os
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
-# from langchain.prompts import PromptTemplate
-# from langchain.llms import CTransformers
 import boto3
 import base64
 import json
-import os
 from werkzeug.security import check_password_hash, generate_password_hash
 from database.database_models import add_generated_content, add_new_user
 import uuid
 from datetime import datetime
+from werkzeug.utils import secure_filename
 
 load_dotenv()
 application = Flask(__name__)
@@ -19,14 +17,69 @@ application.secret_key = os.getenv('SECRET_KEY')
 dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 users_table = dynamodb.Table('Users')
 generated_content_table = dynamodb.Table('GeneratedContent')
+sagemaker_runtime = boto3.client("sagemaker-runtime")
+endpoint_name = "blogify-endpoint-v1"
 
+def invoke_sagemaker_endpoint(payload):
+    try:
+        response = sagemaker_runtime.invoke_endpoint(
+            EndpointName=endpoint_name,
+            Body=json.dumps(payload),
+            ContentType="application/json"
+        )
+        response_body = json.loads(response["Body"].read())
+        return response_body
+    except (ClientError, Exception) as e:
+        print(f"Error invoking endpoint: {e}")
+        return None
+    
+@application.route('/process_payload', methods=['POST'])
+def process_payload():
+    try:
+        # Extract data from the JSON payload
+        data = request.get_json()
+        mode = data.get("mode", "text2img")
+        lora = data.get("lora", "No LoRA")
+        prompt = data.get("prompt", "")
+        negative_prompt = data.get("negative_prompt", "")
+        num_inference_steps = int(data.get("num_inference_steps", 50))
+        guidance_scale = float(data.get("guidance_scale", 7.5))
+        height = int(data.get("height", 512))
+        width = int(data.get("width", 512))
+        seed = int(data.get("seed", 42))
+
+        # Prepare payload for SageMaker
+        payload = {
+            "mode": mode,
+            "lora": lora,
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "num_inference_steps": num_inference_steps,
+            "guidance_scale": guidance_scale,
+            "height": height,
+            "width": width,
+            "seed": seed
+        }
+
+        # Invoke SageMaker endpoint
+        response = invoke_sagemaker_endpoint(payload)
+
+        if response and "image" in response:
+            return jsonify({"image": response["image"], "message": "Image generated successfully."})
+        else:
+            return jsonify({"message": "Image generation failed."}), 500
+    except Exception as e:
+        print(f"Error processing payload: {e}")
+        return jsonify({"message": "An error occurred while processing the payload."}), 500
+
+
+
+        
 @application.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        
-        # Query DynamoDB for the user
         try:
             response = users_table.scan(
                 FilterExpression='Username = :username',
@@ -35,8 +88,7 @@ def login():
             items = response.get('Items')
 
             if items:
-                user = items[0]  # Get the user data
-                # Check if the password is correct
+                user = items[0]  
                 if check_password_hash(user['PasswordHash'], password):
                     session['user_id'] = user['UserID']
                     session['username'] = user['Username']
@@ -59,8 +111,6 @@ def register():
         username = request.form['username']
         password = request.form['password']
         email = request.form['email']
-
-        # Check if the username already exists
         try:
             response = users_table.scan(
                 FilterExpression='Username = :username',
@@ -74,11 +124,11 @@ def register():
             flash('An error occurred. Please try again later.', 'danger')
             return redirect(url_for('register'))
 
-        # Generate a unique user ID and hash the password
+
         user_id = str(uuid.uuid4())
         password_hash = generate_password_hash(password)
 
-        # Create a new user item
+
         try:
             user_item = {
                 'UserID': user_id,
@@ -99,26 +149,11 @@ def register():
 
 def get_sdxl_image(prompt):
     client = boto3.client("bedrock-runtime", region_name="us-east-1")
-
-
     model_id = "stability.stable-diffusion-xl-v1"
-
-
-    # prompt = "Totoro smashing the Forbidden City"
-
-    # Format the request payload using the model's native structure.
     native_request = {"text_prompts":[{"text": prompt,"weight":1}],"cfg_scale":10,"steps":50,"seed":0,"width":1024,"height":1024,"samples":1}
-
-    # Convert the native request to JSON.
     request = json.dumps(native_request)
-
-    # Invoke the model with the request.
     response = client.invoke_model(modelId=model_id, body=request)
-
-    # Decode the response body.
     model_response = json.loads(response["body"].read())
-
-    # Extract the image data.
     base64_image_data = model_response["artifacts"][0]["base64"]
     try:
         request_payload = json.dumps(native_request)
@@ -134,11 +169,7 @@ def get_sdxl_image(prompt):
 
 def get_llma_response(topic, number_of_words, blog_type ):
     client = boto3.client("bedrock-runtime", region_name="us-east-1")
-
-    # Set the model ID, e.g., Titan Text Premier.
     model_id = "us.meta.llama3-2-11b-instruct-v1:0"
-
-    # Start a conversation with the user message.
     prompt = f"Write a blog about '{topic}' aimed at {blog_type} in about {number_of_words} words."
     conversation = [
         {
@@ -148,7 +179,6 @@ def get_llma_response(topic, number_of_words, blog_type ):
     ]
 
     try:
-        # Send the message to the model, using a basic inference configuration.
         response = client.converse(
             modelId= model_id,
             messages=conversation,
@@ -156,7 +186,6 @@ def get_llma_response(topic, number_of_words, blog_type ):
             additionalModelRequestFields={}
         )
 
-        # Extract and print the response text.
         response_text = response["output"]["message"]["content"][0]["text"]
         print(response_text)
         return response_text
@@ -165,11 +194,7 @@ def get_llma_response(topic, number_of_words, blog_type ):
         exit(1)
 def get_llma_img_prompt(generate_blog,topic,blog_type):
     client = boto3.client("bedrock-runtime", region_name="us-east-1")
-
-    # Set the model ID, e.g., Titan Text Premier.
     model_id = "us.meta.llama3-2-11b-instruct-v1:0"
-
-    # Start a conversation with the user message.
     # prompt = f"Write a sentence for the image generation model based on the blog post '{generate_blog}', topic of '{topic}' and aimed at '{blog_type}'"
     prompt = f"Generate a descriptive and vivid prompt for a Stable Diffusion image model based on the blog post '{generate_blog}', with a focus on the topic '{topic}', and aimed at a '{blog_type}' audience. The prompt should include specific visual details, mood, colors, and any key elements or symbols that represent the main themes of the topic to help the model generate an engaging and relevant image of 20 words."
 
@@ -181,15 +206,12 @@ def get_llma_img_prompt(generate_blog,topic,blog_type):
     ]
 
     try:
-        # Send the message to the model, using a basic inference configuration.
         response = client.converse(
             modelId= model_id,
             messages=conversation,
             inferenceConfig={"maxTokens":512,"temperature":0.5,"topP":0.9},
             additionalModelRequestFields={}
         )
-
-        # Extract and print the response text.
         response_text = response["output"]["message"]["content"][0]["text"]
         print(response_text)
         return response_text
@@ -217,9 +239,7 @@ def handle_submit():
         else:
             return jsonify({'error': 'Image generation failed'}), 500
         # add_generated_content(prompt=topic, content=generate_blog, user_id=session['user_id'])
-       
-    
-# Route for handling image generation
+           
 @application.route('/generate_image', methods=['POST'])
 def generate_image():
     if request.method == 'POST':
