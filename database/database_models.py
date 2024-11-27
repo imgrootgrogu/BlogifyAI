@@ -7,37 +7,37 @@ dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
 users_table = dynamodb.Table('Users')
 generated_content_table = dynamodb.Table('GeneratedContent')
 def add_new_user(username, password_hash, email):
-    user_id = str(uuid.uuid4())  # Generate a unique UserID
+    user_id = str(uuid.uuid4()) 
 
     try:
-        # Create a new user item
+        
         user_item = {
             'UserID': user_id,
             'Username': username,
             'PasswordHash': password_hash,
             'Email': email,
-            'Timestamp': str(datetime.utcnow())  # Current timestamp
+            'Timestamp': str(datetime.utcnow()) 
         }
 
-        # Insert the item into the Users table
+    
         response = users_table.put_item(Item=user_item)
         print("User added successfully:", response)
     except Exception as e:
         print(f"Error adding new user: {e}")
 def add_generated_content(prompt, content, user_id):
-    content_id = str(uuid.uuid4())  # Generate a unique ContentID
+    content_id = str(uuid.uuid4())  
 
     try:
-        # Create a new content item
+     
         content_item = {
             'ContentID': content_id,
             'Prompt': prompt,
             'Content': content,
             'UserID': user_id,
-            'Timestamp': str(datetime.utcnow())  # Current timestamp
+            'Timestamp': str(datetime.utcnow()) 
         }
 
-        # Insert the item into the GeneratedContent table
+       
         response = generated_content_table.put_item(Item=content_item)
         print("Content added successfully:", response)
     except Exception as e:

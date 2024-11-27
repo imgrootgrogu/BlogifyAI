@@ -60,7 +60,7 @@ def process_payload():
         width = int(data.get("width", 512))
         seed = int(data.get("seed", 42))
 
-        # Prepare payload for SageMaker
+    
         payload = {
             "mode": mode,
             "lora": lora,
@@ -73,7 +73,7 @@ def process_payload():
             "seed": seed
         }
 
-        # Invoke SageMaker endpoint
+ 
         response = invoke_sagemaker_endpoint(payload)
 
         if response and "image" in response:
