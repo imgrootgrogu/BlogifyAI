@@ -11,6 +11,8 @@ import uuid
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from botocore.config import Config
+import io
+from PIL import Image
 
 load_dotenv()
 application = Flask(__name__)
@@ -45,45 +47,114 @@ def invoke_sagemaker_endpoint(payload):
         print(f"Error invoking endpoint: {e}")
         return None
     
+# @application.route('/process_payload', methods=['POST'])
+# def process_payload():
+#     try:
+       
+#         data = request.get_json()
+#         mode = data.get("mode", "text2img")
+#         lora = data.get("lora", "No LoRA")
+#         prompt = data.get("prompt", "")
+#         negative_prompt = data.get("negative_prompt", "")
+#         num_inference_steps = int(data.get("num_inference_steps", 50))
+#         guidance_scale = float(data.get("guidance_scale", 7.5))
+#         height = int(data.get("height", 512))
+#         width = int(data.get("width", 512))
+#         seed = int(data.get("seed", 42))
+
+    
+#         payload = {
+#             "mode": mode,
+#             "lora": lora,
+#             "prompt": prompt,
+#             "negative_prompt": negative_prompt,
+#             "num_inference_steps": num_inference_steps,
+#             "guidance_scale": guidance_scale,
+#             "height": height,
+#             "width": width,
+#             "seed": seed
+#         }
+
+ 
+#         response = invoke_sagemaker_endpoint(payload)
+
+#         if response and "image" in response:
+#             return jsonify({"image": response["image"], "message": "Image generated successfully."})
+#         else:
+#             return jsonify({"message": "Image generation failed."}), 500
+#     except Exception as e:
+#         print(f"Error processing payload: {e}")
+#         return jsonify({"message": "An error occurred while processing the payload."}), 500
+ 
+
 @application.route('/process_payload', methods=['POST'])
 def process_payload():
     try:
-       
-        data = request.get_json()
-        mode = data.get("mode", "text2img")
-        lora = data.get("lora", "No LoRA")
-        prompt = data.get("prompt", "")
-        negative_prompt = data.get("negative_prompt", "")
-        num_inference_steps = int(data.get("num_inference_steps", 50))
-        guidance_scale = float(data.get("guidance_scale", 7.5))
-        height = int(data.get("height", 512))
-        width = int(data.get("width", 512))
-        seed = int(data.get("seed", 42))
+        if request.content_type.startswith('multipart/form-data'):
+            form_data = request.form
+            uploaded_file = request.files.get('uploaded_image')
 
-    
-        payload = {
-            "mode": mode,
-            "lora": lora,
-            "prompt": prompt,
-            "negative_prompt": negative_prompt,
-            "num_inference_steps": num_inference_steps,
-            "guidance_scale": guidance_scale,
-            "height": height,
-            "width": width,
-            "seed": seed
-        }
+         
+            input_image_base64 = None
+            if uploaded_file:
+                buffer = io.BytesIO()
+                uploaded_file.save(buffer)
+                input_image_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+     
+            mode = form_data.get("mode", "text2img")
+            prompt = form_data.get("prompt", "")
+            negative_prompt = form_data.get("negative_prompt", "")
+            num_inference_steps = int(form_data.get("num_inference_steps", 50))
+            guidance_scale = float(form_data.get("guidance_scale", 7.5))
+            height = int(form_data.get("height", 512))
+            width = int(form_data.get("width", 512))
+            seed = int(form_data.get("seed", 42))
+            strength = float(form_data.get("strength", 0.75))
+            lora = form_data.get("lora", False)
+
+      
+            payload = {
+                "mode": mode,
+                "prompt": prompt,
+                "negative_prompt": negative_prompt,
+                "num_inference_steps": num_inference_steps,
+                "guidance_scale": guidance_scale,
+                "height": height,
+                "width": width,
+                "seed": seed,
+                "strength": strength if mode == "img2img" else None,
+                "lora": lora,
+                "input_image": input_image_base64 if mode == "img2img" else None
+            }
+
+
+        elif request.content_type == 'application/json':
+            payload = request.get_json()
+
+        else:
+            return jsonify({"message": "Unsupported content type"}), 400
 
  
         response = invoke_sagemaker_endpoint(payload)
 
         if response and "image" in response:
-            return jsonify({"image": response["image"], "message": "Image generated successfully."})
+
+            generated_image_base64 = response["image"]
+            image_data = base64.b64decode(generated_image_base64)
+            # with open("generated_image.png", "wb") as file:
+            #     file.write(image_data)
+
+            return jsonify({"image": generated_image_base64, "message": "Image generated successfully."})
         else:
             return jsonify({"message": "Image generation failed."}), 500
+
     except Exception as e:
         print(f"Error processing payload: {e}")
         return jsonify({"message": "An error occurred while processing the payload."}), 500
- 
+
+
+
 @application.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -242,12 +313,14 @@ def handle_submit():
         generate_image_prompt = get_llma_img_prompt(generate_blog,topic,blog_type)
 
         base64_image_data = get_sdxl_image(generate_image_prompt)
+        add_generated_content(prompt=topic, content=generate_blog, user_id=session['user_id'])
         if base64_image_data:
             
             return jsonify({'base64_image': base64_image_data,'generated_blog': generate_blog, 'image_prompt':generate_image_prompt})
         else:
             return jsonify({'error': 'Image generation failed'}), 500
         # add_generated_content(prompt=topic, content=generate_blog, user_id=session['user_id'])
+
            
 @application.route('/generate_image', methods=['POST'])
 def generate_image():
