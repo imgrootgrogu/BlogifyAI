@@ -12,7 +12,7 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 from botocore.config import Config
 import io
-from PIL import Image
+
 
 load_dotenv()
 application = Flask(__name__)
