@@ -1,2 +1,17 @@
 here is where you save your models
 I had stable diffusion 1.5, two LoRAs and VAE stored in .safetensors files here
+
+dependencies in requirements.txt:
+diffusers
+ipython
+json5
+peft==0.13.
+pillow
+safetensors==0.4.5
+tokenizers
+torch
+torchaudio
+torchvision
+tqdm
+transformers==4.46.3
+accelerate
