@@ -58,6 +58,9 @@ Users upload an image and apply modifications using LoRA models for specific sty
 ### 3. Blog Content Generation
 Users specify the blog topic, desired word count, and style. The platform leverages a language model to generate content, summarize, or rephrase the blog text.
 
+### 4. AWS Instruction
+I am currently working on a detailed instruction for AWS components utility for this project. It will take some time since there are so many components involved. I will do my best.
+
 ---
 
 
